@@ -19,7 +19,6 @@ body {
     width: 100%;
     height: 100%;
     height: 100dvh;
-    /* Mobile viewport fix */
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -35,16 +34,15 @@ body {
 
 #game-container {
     width: 100%;
-    max-width: 500px;
     height: 100%;
     height: 100dvh;
-    /* Mobile viewport fix */
     display: flex;
     flex-direction: column;
     background: #fff8dc;
     position: relative;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     margin: auto;
+    overflow: hidden;
 }
 
 /* Header */
@@ -53,7 +51,7 @@ body {
     background: #ffebcd;
     border-bottom: 2px solid #deb887;
     flex-shrink: 0;
-    /* Don't shrink header */
+    z-index: 10;
 }
 
 #boss-container {
@@ -109,17 +107,19 @@ body {
     align-content: center;
     justify-content: center;
 
-    /* Responsive Square Logic */
-    width: 95%;
-    max-width: 500px;
-    aspect-ratio: 1 / 1;
+    /* Responsive Logic */
+    /* Fit within width */
+    width: 95vw;
+    max-width: calc(100dvh - 180px);
+    /* Limit width by available height to keep square-ish */
 
-    /* Ensure it fits vertically between header and footer */
+    /* Fit within height */
+    height: 95vw;
     max-height: calc(100dvh - 180px);
-    /* Approx header + footer height */
 
+    aspect-ratio: 1 / 1;
     margin: auto;
-    /* Center in available space */
+
     border-radius: 10px;
     border: 4px solid #5d2906;
     position: relative;
@@ -191,7 +191,7 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
-    /* Don't shrink footer */
+    z-index: 10;
 }
 
 #player-info {

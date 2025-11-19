@@ -96,11 +96,46 @@ document.addEventListener('DOMContentLoaded', () => {
         isPlaying: false,
         interval: null,
         noteIndex: 0,
+        // Fun upbeat melody (approx 120 BPM)
         melody: [
-            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 659.25, d: 200 },
-            { f: 587.33, d: 200 }, { f: 659.25, d: 200 }, { f: 587.33, d: 400 },
-            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 1046.50, d: 200 },
-            { f: 987.77, d: 200 }, { f: 783.99, d: 200 }, { f: 523.25, d: 400 }
+            // Intro
+            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 1046.50, d: 400 }, // C E G C
+            { f: 783.99, d: 200 }, { f: 1046.50, d: 400 }, { f: 783.99, d: 200 }, // G C G
+            { f: 880.00, d: 200 }, { f: 987.77, d: 200 }, { f: 1046.50, d: 400 }, { f: 0, d: 400 }, // A B C (rest)
+
+            // Theme A
+            { f: 523.25, d: 300 }, { f: 392.00, d: 100 }, { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, // C G C E
+            { f: 587.33, d: 400 }, { f: 392.00, d: 400 }, // D G
+            { f: 523.25, d: 300 }, { f: 392.00, d: 100 }, { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, // C G C E
+            { f: 587.33, d: 400 }, { f: 783.99, d: 400 }, // D G
+
+            { f: 880.00, d: 300 }, { f: 783.99, d: 100 }, { f: 698.46, d: 200 }, { f: 659.25, d: 200 }, // A G F E
+            { f: 587.33, d: 200 }, { f: 523.25, d: 200 }, { f: 587.33, d: 400 }, // D C D
+            { f: 392.00, d: 200 }, { f: 440.00, d: 200 }, { f: 493.88, d: 200 }, { f: 587.33, d: 200 }, // G A B D
+            { f: 523.25, d: 800 }, // C (Long)
+
+            // Theme B (Up a bit)
+            { f: 783.99, d: 300 }, { f: 659.25, d: 100 }, { f: 783.99, d: 200 }, { f: 880.00, d: 200 }, // G E G A
+            { f: 783.99, d: 400 }, { f: 659.25, d: 400 }, // G E
+            { f: 587.33, d: 300 }, { f: 523.25, d: 100 }, { f: 587.33, d: 200 }, { f: 659.25, d: 200 }, // D C D E
+            { f: 523.25, d: 400 }, { f: 392.00, d: 400 }, // C G
+
+            { f: 440.00, d: 200 }, { f: 440.00, d: 200 }, { f: 523.25, d: 200 }, { f: 587.33, d: 200 }, // A A C D
+            { f: 659.25, d: 200 }, { f: 659.25, d: 200 }, { f: 587.33, d: 200 }, { f: 523.25, d: 200 }, // E E D C
+            { f: 587.33, d: 400 }, { f: 783.99, d: 400 }, // D G
+            { f: 523.25, d: 800 }, // C
+
+            // Bridge
+            { f: 349.23, d: 200 }, { f: 440.00, d: 200 }, { f: 523.25, d: 400 }, // F A C
+            { f: 349.23, d: 200 }, { f: 440.00, d: 200 }, { f: 523.25, d: 400 }, // F A C
+            { f: 392.00, d: 200 }, { f: 493.88, d: 200 }, { f: 587.33, d: 400 }, // G B D
+            { f: 392.00, d: 200 }, { f: 493.88, d: 200 }, { f: 587.33, d: 400 }, // G B D
+
+            { f: 1046.50, d: 200 }, { f: 987.77, d: 200 }, { f: 880.00, d: 200 }, { f: 783.99, d: 200 }, // C B A G
+            { f: 698.46, d: 200 }, { f: 659.25, d: 200 }, { f: 587.33, d: 200 }, { f: 523.25, d: 200 }, // F E D C
+            { f: 587.33, d: 400 }, { f: 783.99, d: 400 }, // D G
+            { f: 1046.50, d: 800 }, // High C
+            { f: 0, d: 400 } // Rest
         ],
         start: () => {
             if (BGMManager.isPlaying) return;
@@ -115,17 +150,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!BGMManager.isPlaying) return;
             const note = BGMManager.melody[BGMManager.noteIndex];
 
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(note.f, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + (note.d / 1000));
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + (note.d / 1000));
+            if (note.f > 0) { // If not rest
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                // Use Triangle wave for a "flute-like" or "8-bitish" pleasant sound
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(note.f, audioCtx.currentTime);
+
+                // Envelope
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime); // Low volume
+                gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + (note.d / 1000) - 0.05);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + (note.d / 1000));
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + (note.d / 1000));
+            }
 
             BGMManager.noteIndex = (BGMManager.noteIndex + 1) % BGMManager.melody.length;
             BGMManager.interval = setTimeout(BGMManager.playNextNote, note.d);
