@@ -31,6 +31,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Sound & BGM ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+    // Noise Buffer for Drums
+    let noiseBuffer = null;
+    function createNoiseBuffer() {
+        if (noiseBuffer) return;
+        const bufferSize = audioCtx.sampleRate * 2; // 2 seconds
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        noiseBuffer = buffer;
+    }
+
     const SoundManager = {
         playTone: (freq, type, duration, vol = 0.1) => {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -47,39 +60,25 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         playSwap: () => SoundManager.playTone(300, 'sine', 0.1),
         playMatch: () => {
-            // Toilet Flush Sound Synthesis
+            // Toilet Flush Sound
             if (audioCtx.state === 'suspended') audioCtx.resume();
-
-            const bufferSize = audioCtx.sampleRate * 1.0; // 1.0 seconds
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-
-            // White Noise
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1;
-            }
+            if (!noiseBuffer) createNoiseBuffer();
 
             const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-
+            noise.buffer = noiseBuffer;
             const filter = audioCtx.createBiquadFilter();
             filter.type = 'lowpass';
             filter.Q.value = 1;
-
             const gain = audioCtx.createGain();
 
-            // Filter Sweep (Whoosh)
             filter.frequency.setValueAtTime(800, audioCtx.currentTime);
             filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.8);
-
-            // Volume Envelope
             gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
 
             noise.connect(filter);
             filter.connect(gain);
             gain.connect(audioCtx.destination);
-
             noise.start();
         },
         playSkill: () => {
@@ -92,86 +91,164 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- Deep House BGM Engine ---
     const BGMManager = {
         isPlaying: false,
-        interval: null,
-        noteIndex: 0,
-        // Fun upbeat melody (approx 120 BPM)
-        melody: [
-            // Intro
-            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 1046.50, d: 400 }, // C E G C
-            { f: 783.99, d: 200 }, { f: 1046.50, d: 400 }, { f: 783.99, d: 200 }, // G C G
-            { f: 880.00, d: 200 }, { f: 987.77, d: 200 }, { f: 1046.50, d: 400 }, { f: 0, d: 400 }, // A B C (rest)
+        tempo: 120,
+        lookahead: 25.0, // ms
+        scheduleAheadTime: 0.1, // s
+        nextNoteTime: 0.0,
+        current16thNote: 0,
+        timerID: null,
 
-            // Theme A
-            { f: 523.25, d: 300 }, { f: 392.00, d: 100 }, { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, // C G C E
-            { f: 587.33, d: 400 }, { f: 392.00, d: 400 }, // D G
-            { f: 523.25, d: 300 }, { f: 392.00, d: 100 }, { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, // C G C E
-            { f: 587.33, d: 400 }, { f: 783.99, d: 400 }, // D G
+        // Instruments
+        synthKick: (time) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(150, time);
+            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+            gain.gain.setValueAtTime(0.8, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(time);
+            osc.stop(time + 0.5);
+        },
+        synthHat: (time, open = false) => {
+            if (!noiseBuffer) createNoiseBuffer();
+            const source = audioCtx.createBufferSource();
+            source.buffer = noiseBuffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 8000;
+            const gain = audioCtx.createGain();
+            const decay = open ? 0.3 : 0.05;
+            gain.gain.setValueAtTime(0.3, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + decay);
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            source.start(time);
+            source.stop(time + decay);
+        },
+        synthClap: (time) => {
+            if (!noiseBuffer) createNoiseBuffer();
+            const source = audioCtx.createBufferSource();
+            source.buffer = noiseBuffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 1500;
+            filter.Q.value = 1;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.4, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            source.start(time);
+            source.stop(time + 0.2);
+        },
+        synthBass: (time, freq) => {
+            const osc = audioCtx.createOscillator();
+            const filter = audioCtx.createBiquadFilter();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.value = freq;
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(200, time);
+            filter.frequency.linearRampToValueAtTime(600, time + 0.1);
+            filter.frequency.linearRampToValueAtTime(200, time + 0.3);
+            gain.gain.setValueAtTime(0.4, time);
+            gain.gain.linearRampToValueAtTime(0.4, time + 0.2);
+            gain.gain.linearRampToValueAtTime(0, time + 0.4);
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(time);
+            osc.stop(time + 0.4);
+        },
+        synthChord: (time, freqs) => {
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(400, time);
+            filter.frequency.linearRampToValueAtTime(800, time + 1.0); // Swell
 
-            { f: 880.00, d: 300 }, { f: 783.99, d: 100 }, { f: 698.46, d: 200 }, { f: 659.25, d: 200 }, // A G F E
-            { f: 587.33, d: 200 }, { f: 523.25, d: 200 }, { f: 587.33, d: 400 }, // D C D
-            { f: 392.00, d: 200 }, { f: 440.00, d: 200 }, { f: 493.88, d: 200 }, { f: 587.33, d: 200 }, // G A B D
-            { f: 523.25, d: 800 }, // C (Long)
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.15, time + 0.5); // Slow attack
+            gain.gain.linearRampToValueAtTime(0, time + 2.0); // Long release
 
-            // Theme B (Up a bit)
-            { f: 783.99, d: 300 }, { f: 659.25, d: 100 }, { f: 783.99, d: 200 }, { f: 880.00, d: 200 }, // G E G A
-            { f: 783.99, d: 400 }, { f: 659.25, d: 400 }, // G E
-            { f: 587.33, d: 300 }, { f: 523.25, d: 100 }, { f: 587.33, d: 200 }, { f: 659.25, d: 200 }, // D C D E
-            { f: 523.25, d: 400 }, { f: 392.00, d: 400 }, // C G
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
 
-            { f: 440.00, d: 200 }, { f: 440.00, d: 200 }, { f: 523.25, d: 200 }, { f: 587.33, d: 200 }, // A A C D
-            { f: 659.25, d: 200 }, { f: 659.25, d: 200 }, { f: 587.33, d: 200 }, { f: 523.25, d: 200 }, // E E D C
-            { f: 587.33, d: 400 }, { f: 783.99, d: 400 }, // D G
-            { f: 523.25, d: 800 }, // C
+            freqs.forEach(f => {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'triangle'; // Softer than saw
+                osc.frequency.value = f;
+                osc.connect(filter);
+                osc.start(time);
+                osc.stop(time + 2.0);
+            });
+        },
 
-            // Bridge
-            { f: 349.23, d: 200 }, { f: 440.00, d: 200 }, { f: 523.25, d: 400 }, // F A C
-            { f: 349.23, d: 200 }, { f: 440.00, d: 200 }, { f: 523.25, d: 400 }, // F A C
-            { f: 392.00, d: 200 }, { f: 493.88, d: 200 }, { f: 587.33, d: 400 }, // G B D
-            { f: 392.00, d: 200 }, { f: 493.88, d: 200 }, { f: 587.33, d: 400 }, // G B D
+        // Sequencer
+        scheduleNote: (beatNumber, time) => {
+            // 16th notes. 0-15 per bar.
+            const step = beatNumber % 64; // 4 bar loop
 
-            { f: 1046.50, d: 200 }, { f: 987.77, d: 200 }, { f: 880.00, d: 200 }, { f: 783.99, d: 200 }, // C B A G
-            { f: 698.46, d: 200 }, { f: 659.25, d: 200 }, { f: 587.33, d: 200 }, { f: 523.25, d: 200 }, // F E D C
-            { f: 587.33, d: 400 }, { f: 783.99, d: 400 }, // D G
-            { f: 1046.50, d: 800 }, // High C
-            { f: 0, d: 400 } // Rest
-        ],
+            // Kick: 4 on the floor
+            if (step % 4 === 0) BGMManager.synthKick(time);
+
+            // Hat: Off-beats
+            if (step % 4 === 2) BGMManager.synthHat(time);
+            if (step % 16 === 14) BGMManager.synthHat(time, true); // Open hat occasionally
+
+            // Clap: Beats 2 and 4
+            if (step % 16 === 4 || step % 16 === 12) BGMManager.synthClap(time);
+
+            // Bass: Deep House Groove (G Minor)
+            // G1=49Hz, Bb1=58Hz, C2=65Hz, D2=73Hz, F2=87Hz
+            const bassLine = {
+                0: 49, 3: 49, 7: 58,
+                10: 49, 14: 65,
+                16: 49, 19: 49, 23: 58,
+                26: 49, 30: 73,
+                32: 49, 35: 49, 39: 58,
+                42: 49, 46: 87,
+                48: 49, 51: 49, 55: 58,
+                58: 49, 62: 65
+            };
+            if (bassLine[step]) BGMManager.synthBass(time, bassLine[step]);
+
+            // Chords: Gm9 / Cm9 (Soft Pads)
+            // Gm9: G Bb D F A
+            // Cm9: C Eb G Bb D
+            if (step === 0) BGMManager.synthChord(time, [196.00, 233.08, 293.66, 349.23]); // Gm7
+            if (step === 32) BGMManager.synthChord(time, [261.63, 311.13, 392.00, 466.16]); // Cm7
+        },
+
+        scheduler: () => {
+            while (BGMManager.nextNoteTime < audioCtx.currentTime + BGMManager.scheduleAheadTime) {
+                BGMManager.scheduleNote(BGMManager.current16thNote, BGMManager.nextNoteTime);
+                const secondsPerBeat = 60.0 / BGMManager.tempo;
+                BGMManager.nextNoteTime += 0.25 * secondsPerBeat; // Add 1/4 beat (16th note)
+                BGMManager.current16thNote++;
+                if (BGMManager.current16thNote === 64) BGMManager.current16thNote = 0;
+            }
+            BGMManager.timerID = window.setTimeout(BGMManager.scheduler, BGMManager.lookahead);
+        },
+
         start: () => {
             if (BGMManager.isPlaying) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             BGMManager.isPlaying = true;
-            BGMManager.playNextNote();
+            BGMManager.current16thNote = 0;
+            BGMManager.nextNoteTime = audioCtx.currentTime + 0.1;
+            BGMManager.scheduler();
         },
         stop: () => {
             BGMManager.isPlaying = false;
-            clearTimeout(BGMManager.interval);
-        },
-        playNextNote: () => {
-            if (!BGMManager.isPlaying) return;
-            const note = BGMManager.melody[BGMManager.noteIndex];
-
-            if (note.f > 0) { // If not rest
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-
-                // Use Triangle wave for a "flute-like" or "8-bitish" pleasant sound
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(note.f, audioCtx.currentTime);
-
-                // Envelope
-                gain.gain.setValueAtTime(0.05, audioCtx.currentTime); // Low volume
-                gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + (note.d / 1000) - 0.05);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + (note.d / 1000));
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + (note.d / 1000));
-            }
-
-            BGMManager.noteIndex = (BGMManager.noteIndex + 1) % BGMManager.melody.length;
-            BGMManager.interval = setTimeout(BGMManager.playNextNote, note.d);
+            window.clearTimeout(BGMManager.timerID);
         }
     };
 
