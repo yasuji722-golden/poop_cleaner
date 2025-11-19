@@ -14,27 +14,37 @@
     user-select: none;
 }
 
+html,
 body {
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    /* Mobile viewport fix */
     margin: 0;
     padding: 0;
+    overflow: hidden;
+}
+
+body {
     background-color: var(--bg-color);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    overflow: hidden;
 }
 
 #game-container {
     width: 100%;
     max-width: 500px;
-    height: 100vh;
+    height: 100%;
+    height: 100dvh;
+    /* Mobile viewport fix */
     display: flex;
     flex-direction: column;
     background: #fff8dc;
     position: relative;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    margin: auto;
 }
 
 /* Header */
@@ -42,6 +52,8 @@ body {
     padding: 10px;
     background: #ffebcd;
     border-bottom: 2px solid #deb887;
+    flex-shrink: 0;
+    /* Don't shrink header */
 }
 
 #boss-container {
@@ -88,7 +100,6 @@ body {
 
 /* Grid */
 #grid-container {
-    flex-grow: 1;
     display: grid;
     grid-template-columns: repeat(var(--grid-size), 1fr);
     grid-template-rows: repeat(var(--grid-size), 1fr);
@@ -97,12 +108,21 @@ body {
     background: #8b4513;
     align-content: center;
     justify-content: center;
+
+    /* Responsive Square Logic */
+    width: 95%;
+    max-width: 500px;
     aspect-ratio: 1 / 1;
-    /* Force square container */
-    margin: 10px auto;
+
+    /* Ensure it fits vertically between header and footer */
+    max-height: calc(100dvh - 180px);
+    /* Approx header + footer height */
+
+    margin: auto;
+    /* Center in available space */
     border-radius: 10px;
     border: 4px solid #5d2906;
-    max-height: 80vh;
+    position: relative;
 }
 
 .tile {
@@ -140,6 +160,28 @@ body {
     image-rendering: pixelated;
 }
 
+/* Pop Disappear Effect */
+.tile.popping {
+    animation: popDisappear 0.3s ease-out forwards;
+}
+
+@keyframes popDisappear {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    40% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
 /* Footer */
 #game-footer {
     padding: 10px;
@@ -148,6 +190,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
+    /* Don't shrink footer */
 }
 
 #player-info {
@@ -230,4 +274,28 @@ button#restart-btn {
 button#start-btn:hover,
 button#restart-btn:hover {
     transform: scale(1.05);
+}
+
+/* Floating Score */
+.floating-score {
+    position: absolute;
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 24px;
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none;
+    z-index: 20;
+    animation: floatUp 1s ease-out forwards;
+}
+
+@keyframes floatUp {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-50px) scale(1.2);
+        opacity: 0;
+    }
 }

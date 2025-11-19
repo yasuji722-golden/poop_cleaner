@@ -47,8 +47,40 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         playSwap: () => SoundManager.playTone(300, 'sine', 0.1),
         playMatch: () => {
-            SoundManager.playTone(400, 'sine', 0.1);
-            setTimeout(() => SoundManager.playTone(600, 'sine', 0.2), 100);
+            // Toilet Flush Sound Synthesis
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const bufferSize = audioCtx.sampleRate * 1.0; // 1.0 seconds
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            // White Noise
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.Q.value = 1;
+
+            const gain = audioCtx.createGain();
+
+            // Filter Sweep (Whoosh)
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.8);
+
+            // Volume Envelope
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            noise.start();
         },
         playSkill: () => {
             SoundManager.playTone(200, 'square', 0.1);
@@ -264,15 +296,10 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (type === 3 || type === 5) { s = -5; }
             else { damage += 1; }
 
-            // Apply Multiplier
             s = Math.floor(s * multiplier);
-
             matchScore += s;
 
-            // Show score on THIS tile
             showFloatingText(m.r, m.c, s, multiplier);
-
-            // Trigger Pop Animation
             grid[m.r][m.c].element.classList.add('popping');
         });
 
@@ -280,14 +307,12 @@ document.addEventListener('DOMContentLoaded', () => {
         bossHP = Math.max(0, bossHP - damage * multiplier);
         updateUI();
 
-        // Wait for animation
         await new Promise(r => setTimeout(r, 300));
 
         applyGravity(matches);
 
         const newMatches = findMatches();
         if (newMatches.length > 0) {
-            // Chain reaction! Double the multiplier.
             await processMatches(newMatches, multiplier * 2);
         } else {
             isProcessing = false;
@@ -312,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         el.textContent = text;
         el.style.color = amount >= 0 ? '#ffd700' : '#ff4444';
 
-        // Position centered on the tile
         el.style.left = `${rect.left - containerRect.left + rect.width / 2 - 20}px`;
         el.style.top = `${rect.top - containerRect.top}px`;
 
