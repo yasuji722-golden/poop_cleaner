@@ -65,10 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
         interval: null,
         noteIndex: 0,
         melody: [
-            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 659.25, d: 200 }, // C E G E
-            { f: 587.33, d: 200 }, { f: 659.25, d: 200 }, { f: 587.33, d: 400 }, // D E D
-            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 1046.50, d: 200 }, // C E G C
-            { f: 987.77, d: 200 }, { f: 783.99, d: 200 }, { f: 523.25, d: 400 }  // B G C
+            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 659.25, d: 200 },
+            { f: 587.33, d: 200 }, { f: 659.25, d: 200 }, { f: 587.33, d: 400 },
+            { f: 523.25, d: 200 }, { f: 659.25, d: 200 }, { f: 783.99, d: 200 }, { f: 1046.50, d: 200 },
+            { f: 987.77, d: 200 }, { f: 783.99, d: 200 }, { f: 523.25, d: 400 }
         ],
         start: () => {
             if (BGMManager.isPlaying) return;
@@ -251,42 +251,83 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function processMatches(matches) {
+    async function processMatches(matches, multiplier = 1) {
         SoundManager.playMatch();
         let damage = 0;
+        let matchScore = 0;
+
         matches.forEach(m => {
             const type = grid[m.r][m.c].type;
-            score += 10;
-            if (type === 1) { damage += 5; score += 50; }
+            let s = 10;
+            if (type === 1) { damage += 5; s += 50; }
             else if (type === 7) { damage += 3; }
-            else if (type === 3 || type === 5) { score -= 5; }
+            else if (type === 3 || type === 5) { s = -5; }
             else { damage += 1; }
+
+            // Apply Multiplier
+            s = Math.floor(s * multiplier);
+
+            matchScore += s;
+
+            // Show score on THIS tile
+            showFloatingText(m.r, m.c, s, multiplier);
+
+            // Trigger Pop Animation
+            grid[m.r][m.c].element.classList.add('popping');
         });
-        bossHP = Math.max(0, bossHP - damage);
+
+        score += matchScore;
+        bossHP = Math.max(0, bossHP - damage * multiplier);
         updateUI();
 
-        matches.forEach(m => {
-            grid[m.r][m.c].element.style.opacity = '0';
-        });
-
+        // Wait for animation
         await new Promise(r => setTimeout(r, 300));
+
         applyGravity(matches);
 
         const newMatches = findMatches();
         if (newMatches.length > 0) {
-            await processMatches(newMatches);
+            // Chain reaction! Double the multiplier.
+            await processMatches(newMatches, multiplier * 2);
         } else {
             isProcessing = false;
         }
     }
 
+    function showFloatingText(r, c, amount, multiplier) {
+        const tile = grid[r][c].element;
+        const rect = tile.getBoundingClientRect();
+        const containerRect = gridContainer.getBoundingClientRect();
+
+        const el = document.createElement('div');
+        el.classList.add('floating-score');
+
+        let text = amount >= 0 ? `+${amount}` : amount;
+        if (multiplier > 1) {
+            text += ` x${multiplier}!`;
+            el.style.fontSize = '28px';
+            el.style.zIndex = '30';
+        }
+
+        el.textContent = text;
+        el.style.color = amount >= 0 ? '#ffd700' : '#ff4444';
+
+        // Position centered on the tile
+        el.style.left = `${rect.left - containerRect.left + rect.width / 2 - 20}px`;
+        el.style.top = `${rect.top - containerRect.top}px`;
+
+        gridContainer.appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    }
+
     function applyGravity(matches) {
         matches.forEach(m => {
             grid[m.r][m.c].type = -1;
+            grid[m.r][m.c].element.classList.remove('popping');
             grid[m.r][m.c].element.style.opacity = '1';
+            grid[m.r][m.c].element.style.transform = 'none';
         });
 
-        // Track drop distances for animation
         const drops = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(0));
 
         for (let c = 0; c < GRID_SIZE; c++) {
@@ -297,30 +338,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (emptyCount > 0) {
                     grid[r + emptyCount][c].type = grid[r][c].type;
                     grid[r][c].type = -1;
-                    drops[r + emptyCount][c] = emptyCount; // It fell this far
+                    drops[r + emptyCount][c] = emptyCount;
                 }
             }
             for (let r = 0; r < emptyCount; r++) {
                 grid[r][c].type = Math.floor(Math.random() * TILE_TYPES) + 1;
-                drops[r][c] = emptyCount + 1; // New tile, pretend it fell from above
+                drops[r][c] = emptyCount + 1;
             }
         }
 
-        // Update visuals and animate
         for (let r = 0; r < GRID_SIZE; r++) {
             for (let c = 0; c < GRID_SIZE; c++) {
                 updateTileVisuals(r, c);
 
                 if (drops[r][c] > 0) {
                     const tile = grid[r][c].element;
-                    // Start position (up)
                     tile.style.transition = 'none';
                     tile.style.transform = `translateY(-${drops[r][c] * 100}%)`;
-
-                    // Trigger reflow
                     void tile.offsetWidth;
-
-                    // End position (normal)
                     tile.style.transition = 'transform 0.3s ease-in';
                     tile.style.transform = 'translateY(0)';
                 }
