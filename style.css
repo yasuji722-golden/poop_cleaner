@@ -1,0 +1,233 @@
+:root {
+    --bg-color: #fdf6e3;
+    --primary-color: #8b4513;
+    /* Poop brown */
+    --accent-color: #ffd700;
+    /* Gold */
+    --grid-size: 8;
+    --tile-size: 50px;
+    --gap: 4px;
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#game-container {
+    width: 100%;
+    max-width: 500px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #fff8dc;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+#game-header {
+    padding: 10px;
+    background: #ffebcd;
+    border-bottom: 2px solid #deb887;
+}
+
+#boss-container {
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+#boss-hp-bar {
+    width: 100%;
+    height: 20px;
+    background: #555;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #333;
+}
+
+#boss-hp-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, #ff4444, #ff0000);
+    transition: width 0.3s;
+}
+
+#timer-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#timer-bar {
+    flex-grow: 1;
+    height: 15px;
+    background: #555;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#timer-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, #00ff00, #adff2f);
+    transition: width 0.1s linear;
+}
+
+/* Grid */
+#grid-container {
+    flex-grow: 1;
+    display: grid;
+    grid-template-columns: repeat(var(--grid-size), 1fr);
+    grid-template-rows: repeat(var(--grid-size), 1fr);
+    gap: var(--gap);
+    padding: 10px;
+    background: #8b4513;
+    align-content: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    /* Force square container */
+    margin: 10px auto;
+    border-radius: 10px;
+    border: 4px solid #5d2906;
+    max-height: 80vh;
+}
+
+.tile {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    /* Force square tiles */
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    transition: transform 0.1s, background-color 0.2s;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.tile:active {
+    transform: scale(0.95);
+}
+
+.tile.selected {
+    background-color: #fffacd;
+    box-shadow: 0 0 0 3px #ffd700, inset 0 0 10px #ffd700;
+    z-index: 10;
+    transform: scale(1.05);
+}
+
+.tile img {
+    width: 85%;
+    height: 85%;
+    object-fit: contain;
+    pointer-events: none;
+    image-rendering: pixelated;
+}
+
+/* Footer */
+#game-footer {
+    padding: 10px;
+    background: #ffebcd;
+    border-top: 2px solid #deb887;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#player-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#player-avatar {
+    width: 50px;
+    height: 50px;
+    background: #ccc;
+    /* Placeholder */
+    border-radius: 50%;
+    border: 2px solid #8b4513;
+}
+
+#skills-container {
+    display: flex;
+    gap: 5px;
+}
+
+.skill-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    background: #4caf50;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 0 #2e7d32;
+}
+
+.skill-btn:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+/* Overlays */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    z-index: 100;
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#title-screen h1 {
+    font-size: 2.5rem;
+    color: #ffd700;
+    text-shadow: 2px 2px 0 #8b4513;
+    margin-bottom: 2rem;
+}
+
+button#start-btn,
+button#restart-btn {
+    font-size: 1.5rem;
+    padding: 15px 40px;
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #cc0000;
+    transition: transform 0.1s;
+}
+
+button#start-btn:hover,
+button#restart-btn:hover {
+    transform: scale(1.05);
+}
